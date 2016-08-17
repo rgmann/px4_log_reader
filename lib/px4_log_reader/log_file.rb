@@ -1,63 +1,68 @@
-module PX4
+
+module Px4LogReaderIncludes
 
 	module LogFile
 
 		HEADER_MARKER = [0xA3,0x95]
 	   HEADER_LENGTH = 3
 
-		FORMAT_MESSAGE = MessageDescriptor.new({
+		FORMAT_MESSAGE = Px4LogReaderIncludes::MessageDescriptor.new({
 	      name: 'FMT',
 	      type: 0x80,
 	      length: 89,
 	      format: 'BBnZ',
-	      fields: ["Type", "Length", "Name", "Format", "Labels"] }).freeze
+	      fields: [ "Type", "Length", "Name", "Format", "Labels" ] }).freeze
 
-		def self.read_descriptors( buffered_io, cache_filename )
+		def self.read_descriptors( buffered_io, cache_filename=nil )
 
 			message_descriptors = {}
 
-	      loop do
-	         begin
-	            message_type = read_message_header( file )
-
-	            if message_type.nil?
-	               break
-	            elsif message_type == FORMAT_MESSAGE.type
-	               # puts "Found format message"
-	               message_descriptor = MessageDescriptor.new
-	               message_descriptor.parse_from_io( file )
-
-	               unless message_descriptors.keys.include? message_descriptor.type
-	                  message_descriptors[ message_descriptor.type ] = message_descriptor
-	               end
-
-	               if message_descriptor.name == "TIME"
-	                  @px4_log_format = true
-	               end
-	            end
-
-	            # $stdout.printf "\rReading formats %d/%d", io.pos, @file_size
-
-	         rescue StandardError => e
-	            puts "#{e.class}: #{e.message}"
-	            puts e.backtrace.join("\n")
-	            break
-	         end
-	      end
+			loop do
+				message_descriptor = read_descriptor( buffered_io )
+				if message_descriptor.nil?
+					break
+				elsif !message_descriptors.keys.include? message_descriptor.type
+					message_descriptors[ message_descriptor.type ] = message_descriptor
+				end
+			end
 	      # $stdout.puts
 
-	      # If a cache filename was supplied, dump the descriptors to the cache
-	      if cache_filename
-	         File.open( cache_filename, 'w+' ) do |io|
-	            message_descriptors.each do |message_type,description|
-	               description_data = Marshal.dump( description )
-	               io.write( [ description_data.size ].pack('L') )
-	               io.write( description_data )
-	            end
-	         end
-	      end
+			# If a cache filename was supplied, dump the descriptors to the cache
+			if cache_filename
+				File.open( cache_filename, 'w+' ) do |io|
+					message_descriptors.each do |message_type,description|
+						description_data = Marshal.dump( description )
+						io.write( [ description_data.size ].pack('L') )
+						io.write( description_data )
+					end
+				end
+			end
 
-	      return message_descriptors
+			return message_descriptors
+	   end
+
+	   def self.read_descriptor( buffered_io )
+
+	   	message_descriptor = nil
+
+	   	begin
+
+				message_type = read_message_header( buffered_io )
+
+				if message_type == FORMAT_MESSAGE.type
+					# puts "Found format message"
+					message_descriptor = Px4LogReaderIncludes::MessageDescriptor.new
+					message_descriptor.unpack( buffered_io )
+				end
+
+				# $stdout.printf "\rReading formats %d/%d", io.pos, @file_size
+
+			rescue StandardError => e
+				puts "#{e.class}: #{e.message}"
+				puts e.backtrace.join("\n")
+			end
+
+			return message_descriptor
 	   end
 
 	   def self.read_message( buffered_io, message_descriptors )
@@ -78,8 +83,6 @@ module PX4
 	         elsif message_type.nil?
 	            break
 	         end
-
-	         # $stdout.printf "\rReading formats %d/%d", io.pos, @file_size
 	      end
 
 	      return message
@@ -97,11 +100,8 @@ module PX4
 
 	               data << buffered_io.read(1)
 
-	               # puts "#{data.unpack('CCC')[0,2]} == #{HEADER_MARKER}"
 	               if data.unpack('CCC')[0,2] == HEADER_MARKER
 	                  byte = data.unpack('CCC').last & 0xFF
-	                  # puts "Found message header #{data.unpack('CCC')}"
-	                  # puts "message_type = #{'%02X'%byte}"
 	                  break
 	               else
 	                  data = data[1..-1]
@@ -118,6 +118,13 @@ module PX4
 	      end
 
 	      return byte
+	   end
+
+
+	   def self.write_message( io, message )
+	   	io.write HEADER_MARKER.pack('CC')
+	   	io.write [ message.descriptor.type ].pack('C')
+	   	io.write message.pack
 	   end
 
 	end

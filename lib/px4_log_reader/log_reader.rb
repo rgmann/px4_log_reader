@@ -1,6 +1,6 @@
 class Px4LogReader
 
-   include PX4
+   include Px4LogReaderIncludes
 
    attr_reader :message_descriptions
    attr_reader :messages
