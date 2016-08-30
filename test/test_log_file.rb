@@ -11,27 +11,27 @@ class TestLogFile < MiniTest::Test
 
 	def test_read_descriptors
 
-		log_file = open_log_file
-		descriptors = Px4LogReaderIncludes::LogFile.read_descriptors( log_file )
+		# log_file = open_log_file
+		# descriptors = Px4LogReaderIncludes::LogFile.read_descriptors( log_file )
 
-		puts "Found #{descriptors.count} descriptors"
-		descriptors.each do |type,descriptor|
-			puts "  #{descriptor.name}"
-		end
+		# puts "Found #{descriptors.count} descriptors"
+		# descriptors.each do |type,descriptor|
+		# 	puts "  #{descriptor.name}"
+		# end
 
-		log_file.close
+		# log_file.close
 
 	end
 
 	def test_read_message
 
-		log_file = open_log_file
-		descriptors = Px4LogReaderIncludes::LogFile.read_descriptors( log_file )
+		# log_file = open_log_file
+		# descriptors = Px4LogReaderIncludes::LogFile.read_descriptors( log_file )
 
-		log_file.rewind
-		message = Px4LogReaderIncludes::LogFile.read_message( log_file, descriptors )
+		# log_file.rewind
+		# message = Px4LogReaderIncludes::LogFile.read_message( log_file, descriptors )
 		
-		puts message.descriptor
+		# puts message.descriptor
 
 	end
 

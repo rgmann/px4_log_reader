@@ -2,6 +2,8 @@ class Px4LogReader
 
    include Px4LogReaderIncludes
 
+   
+
    attr_reader :message_descriptions
    attr_reader :messages
    attr_reader :px4_log_format

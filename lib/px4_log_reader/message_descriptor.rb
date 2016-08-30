@@ -1,4 +1,3 @@
-# require 'px4_log_reader/log_message'
 
 module Px4LogReaderIncludes
 
@@ -17,10 +16,10 @@ module Px4LogReaderIncludes
 				@type = attrs[:type]
 				@length = attrs[:length]
 				@format = attrs[:format]
-				@format_specifier = build_format_specifier( @format )
+				@format_specifier = MessageDescriptor.build_format_specifier( @format )
 				fields = attrs[:fields]
 
-				@fieldList = build_field_list( fields )
+				@fieldList = MessageDescriptor.build_field_list( fields )
 			elsif attrs.size > 0
 				raise "Missing attributes"
 			else
@@ -33,100 +32,123 @@ module Px4LogReaderIncludes
 			end
 	   end
 
-	   def unpack( io )
+	   def from_message( message )
 
-	   	# 1) Type (1 byte)
-	   	# 2) Length (1 byte)
-	   	# 3) Name (4 bytes)
-	   	# 4) Field type encoding (16 bytes)
-	   	# 5) Field names (64 bytes)
+	   	if message.descriptor.type != 0x80
 
-			@type, @length, @name, @format, fields = io.read(1+1+4+16+64).unpack('CCA4A16a64')
-			@format_specifier = build_format_specifier( @format )
+	   		raise InvalidDescriptorError.new(
+	   			'Invalid descriptor type for format specifier message' )
 
-			if fields.empty? == false
-				fields = fields.split(',')
+	   	elsif message.fields.count != 5
+
+	   		raise InvalidDescriptorError.new(
+	   			"Invalid field count for format specifier message: expected 5 fields, found #{message.fields.count}" )
+
+	   	end
+
+	   	@type, @length, @name, @format, fields_string = message.fields
+
+	   	@format_specifier = MessageDescriptor.build_format_specifier( @format )
+
+			unless fields_string.empty?
+
+				fields = fields_string.split(',')
+
 				if fields.length != @format.length
-					raise "Field count must match format length"
+					raise InvalidDescriptorError.new(
+						"Field count must match format length: expected #{@format.length}; found #{fields.length}")
 				else
-					@field_list = build_field_list( fields )
+					@field_list = MessageDescriptor.build_field_list( fields )
 				end
+
 			end
+			
 	   end
 
-	   def build_field_list( fields )
-			field_list = {}
-			fields.each_with_index do |field,index|
-				field_list[field] = index
-			end
-			field_list
-	   end
+		class << self
 
-	   def build_format_specifier( px4_format_string )
-			format_specifier = ''
-
-			px4_format_string.chars.each do |field_format|
-				case field_format.to_s
-				when 'f'
-					format_specifier << 'F'
-				when 'q', 'Q'
-					format_specifier << 'l!'
-				when 'i', 'L', 'e'
-					format_specifier << 'l'
-				when 'I', 'E'
-					format_specifier << 'L'
-				when 'b'
-					format_specifier << 'c'
-				when 'B', 'M'
-					format_specifier << 'C'
-				when 'h', 'c'
-					format_specifier << 's'
-				when 'H', 'C'
-					format_specifier << 'S'
-				when 'n'
-					format_specifier << 'A4'
-				when 'N'
-					format_specifier << 'A16'
-				when 'Z'
-					format_specifier << 'A64'
-				else
-					raise "Invalid format specifier"
+			def build_field_list( fields )
+				field_list = {}
+				fields.each_with_index do |field,index|
+					field_list[field] = index
 				end
+				field_list
 			end
 
-			return format_specifier
-	   end
+			def build_format_specifier( px4_format_string )
+				format_specifier = ''
 
-	   def parse_message( message_data )
+				px4_format_string.unpack('C*').each do |field_format|
+					case field_format
+					when 0x66 # 'f'
+						format_specifier << 'F'
+					when 0x71, 0x51 # 'q', 'Q'
+						format_specifier << 'l!'
+					when 0x69, 0x4C, 0x65 # 'i', 'L', 'e'
+						format_specifier << 'l'
+					when 0x49, 0x45 # 'I', 'E'
+						format_specifier << 'L'
+					when 0x62 # 'b'
+						format_specifier << 'c'
+					when 0x42, 0x4D # 'B', 'M'
+						format_specifier << 'C'
+					when 0x68, 0x63 # 'h', 'c'
+						format_specifier << 's'
+					when 0x48, 0x43 # 'H', 'C'
+						format_specifier << 'S'
+					when 0x6E # 'n'
+						format_specifier << 'A4'
+					when 0x4E # 'N'
+						format_specifier << 'A16'
+					when 0x5A # 'Z'
+						format_specifier << 'A64'
+					else
+						raise InvalidDescriptorError.new(
+							"Invalid format specifier: '#{ '0x%02X' % field_format }' in #{px4_format_string}")
+					end
+				end
 
-			@format_specifier = build_format_specifier( @format ) if @format_specifier.nil?
+				return format_specifier
+			end
+		end
+
+		def unpack_message( message_data )
+
+			if @format_specifier.nil?
+				@format_specifier = MessageDescriptor.build_format_specifier( @format )
+			end
+
 			fields = message_data.unpack( @format_specifier )
 
-			@format.chars.each_with_index do |field_format,index|
-				case field_format.to_s
-				when 'L'
+			@format.unpack('C*').each_with_index do |field_format,index|
+				case field_format
+				when 0x4C # 'L'
 					fields[index] = fields[index] * 1.0E-7
-				when 'c', 'C', 'E'
+				when 0x63, 0x43, 0x45 # 'c', 'C', 'E'
 					fields[index] = fields[index] * 1.0E-2
 				else
 				end
 			end
 
-			return Px4LogReaderIncludes::LogMessage.new( self, fields )
-	   end
+			if fields.nil? || fields.empty?
+				raise "No fields"
+			end
 
-	   def pack_message( fields )
+			return LogMessage.new( self, fields )
+		end
 
-	   	if fields.count != @format.length
-	   		raise "Descriptor format length must match message field count"
-	   	end
+		def pack_message( fields )
 
-	   	corrected_fields = fields.dup
-	   	@format.chars.each_with_index do |field_format,index|
-	   		case field_format.to_s
-				when 'L'
+			if fields.count != @format.length
+				raise "Descriptor format length must match message field count"
+			end
+
+			corrected_fields = fields.dup
+			@format.unpack('C*').each_with_index do |field_format,index|
+				case field_format
+				when 0x4C # 'L'
 					corrected_fields[index] /= 1.0E-7
-				when 'c', 'C', 'E'
+				when 0x63, 0x43, 0x45 # 'c', 'C', 'E'
 					corrected_fields[index] /= 1.0E-2
 				else
 				end
@@ -142,15 +164,25 @@ module Px4LogReaderIncludes
 			@field_list.each do |name,index|
 				puts "   field#{index} = #{name}"
 			end
-	   end
+		end
 
-	   def to_csv_line(timestamp_first=true)
-	      fields = []
-	      fields << "Timestamp" if timestamp_first
-	      fields.concat( @field_list.keys )
-	      return fields.join(",")
-	   end
+		def to_csv_line(timestamp_first=true)
+			fields = []
+			fields << "Timestamp" if timestamp_first
+			fields.concat( @field_list.keys )
+			return fields.join(",")
+		end
 
 	end
+
+	#
+	# Message descriptor for format messages
+	#
+	FORMAT_MESSAGE = Px4LogReaderIncludes::MessageDescriptor.new({
+		name: 'FMT',
+		type: 0x80,
+		length: 89,
+		format: 'BBnNZ',
+		fields: [ "Type", "Length", "Name", "Format", "Labels" ] }).freeze
 
 end

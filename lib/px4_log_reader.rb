@@ -1,3 +1,4 @@
+require 'px4_log_reader/invalid_descriptor_error'
 require 'px4_log_reader/log_message'
 require 'px4_log_reader/message_descriptor'
 require 'px4_log_reader/log_buffer'
