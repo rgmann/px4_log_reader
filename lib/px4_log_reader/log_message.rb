@@ -10,7 +10,14 @@ module Px4LogReaderIncludes
 		def to_csv_line(timestamp)
 			return [ timestamp ].concat( @fields ).join(',')
 		end
+
 		def get( index )
+
+			index = index
+			if index.class == String
+				index = descriptor.field_list[ index ]
+			end
+
 			return @fields[ index ]
 		end
 

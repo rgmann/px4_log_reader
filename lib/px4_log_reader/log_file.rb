@@ -7,7 +7,7 @@ module Px4LogReaderIncludes
 	   HEADER_LENGTH = 3
 	   FORMAT_DESCRIPTOR_TABLE = { FORMAT_MESSAGE.type => FORMAT_MESSAGE }.freeze
 
-		def self.read_descriptors( buffered_io, cache_filename=nil )
+		def self.read_descriptors( buffered_io, descriptor_cache=nil )
 
 			message_descriptors = {}
 
@@ -18,14 +18,8 @@ module Px4LogReaderIncludes
 			end
 
 			# If a cache filename was supplied, dump the descriptors to the cache
-			if cache_filename
-				File.open( cache_filename, 'w+' ) do |io|
-					message_descriptors.each do |message_type,description|
-						description_data = Marshal.dump( description )
-						io.write( [ description_data.size ].pack('L') )
-						io.write( description_data )
-					end
-				end
+			if descriptor_cache
+				descriptor_cache.write_descriptors( message_descriptors )
 			end
 
 			return message_descriptors

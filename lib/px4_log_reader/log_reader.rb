@@ -12,42 +12,16 @@ class Px4LogReader
       @message_descriptors = {}
       @latest_messages = {}
       @log_buffer_array = LogBufferArray.new
+      @descriptor_cache = nil
    end
 
-   def get_packet_descriptors( filename, cache_filename = nil )
+   def descriptors
+      descriptors = []
 
-      message_descriptors = {}
-
-      if cache_filename && File.exist?( cache_filename )
-         if File.exist?( cache_filename )
-            File.open( cache_filename, 'r' ) do |io|
-               begin
-                  loop do
-                     descriptor_size = io.read_nonblock(4).unpack('L').first
-                     descriptor = Marshal.load( io.read(descriptor_size) )
-
-                     message_descriptors[ description.type ] = description
-                  end
-               rescue EOFError => error
-                  puts "Parsed #{@message_descriptions.size} cached message descriptions"
-                  # @message_descriptions.each do |message_type,description|
-                  #    puts description
-                  # end
-               rescue StandardError => error
-                  puts "#{error.class}: #{error.message}"
-                  puts error.backtrace.join("\n")
-               end
-            end
-         else
-            puts "Cache file '#{cache_filename}' not found"
-         end
-      else
-         File.open( filename, 'r' ) do |io|
-            message_descriptors = read_descriptors( io, cache_filename )
-         end
+      if @log_file
       end
 
-      return message_descriptors
+      descriptors
    end
 
    def open( filename, options={} )
@@ -56,12 +30,20 @@ class Px4LogReader
          buffer_size_kb: 10 * 1024
       }.merge( options )
 
+      if opts[:cache_filename]
+         @descriptor_cache = MessageDescriptorCache.new( opts[:cache_filename] )
+      end
+
       if File.exist? filename
 
          @file_size = File.size?(filename)
-         @message_descriptor = get_packet_descriptors( filename, cache_filename )
-
          @log_file = File.open( filename, 'r' )
+
+         if @descriptor_cache.exist?
+            @message_descriptors = @descriptor_cache.read_descriptors
+         else
+            @message_descriptors = LogFile::read_descriptors( @log_file, @descriptor_cache )
+         end
 
          @buffers.set_file( @log_file, load_buffers: true )
 

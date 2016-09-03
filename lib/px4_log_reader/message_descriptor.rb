@@ -19,7 +19,7 @@ module Px4LogReaderIncludes
 				@format_specifier = MessageDescriptor.build_format_specifier( @format )
 				fields = attrs[:fields]
 
-				@fieldList = MessageDescriptor.build_field_list( fields )
+				@field_list = MessageDescriptor.build_field_list( fields )
 			elsif attrs.size > 0
 				raise "Missing attributes"
 			else
@@ -32,23 +32,23 @@ module Px4LogReaderIncludes
 			end
 	   end
 
-	   def from_message( message )
+		def from_message( message )
 
-	   	if message.descriptor.type != 0x80
+			if message.descriptor.type != 0x80
 
-	   		raise InvalidDescriptorError.new(
-	   			'Invalid descriptor type for format specifier message' )
+				raise InvalidDescriptorError.new(
+					'Invalid descriptor type for format specifier message' )
 
-	   	elsif message.fields.count != 5
+			elsif message.fields.count != 5
 
-	   		raise InvalidDescriptorError.new(
-	   			"Invalid field count for format specifier message: expected 5 fields, found #{message.fields.count}" )
+				raise InvalidDescriptorError.new(
+					"Invalid field count for format specifier message: expected 5 fields, found #{message.fields.count}" )
 
-	   	end
+			end
 
-	   	@type, @length, @name, @format, fields_string = message.fields
+			@type, @length, @name, @format, fields_string = message.fields
 
-	   	@format_specifier = MessageDescriptor.build_format_specifier( @format )
+			@format_specifier = MessageDescriptor.build_format_specifier( @format )
 
 			unless fields_string.empty?
 
@@ -164,13 +164,6 @@ module Px4LogReaderIncludes
 			@field_list.each do |name,index|
 				puts "   field#{index} = #{name}"
 			end
-		end
-
-		def to_csv_line(timestamp_first=true)
-			fields = []
-			fields << "Timestamp" if timestamp_first
-			fields.concat( @field_list.keys )
-			return fields.join(",")
 		end
 
 	end
