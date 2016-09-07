@@ -65,6 +65,10 @@ module Px4LogReaderIncludes
 			
 	   end
 
+	   def to_message
+	   	return LogMessage.new( FORMAT_MESSAGE, [ @type, @length, @name, @format, @fields_string ] )
+	   end
+
 		class << self
 
 			def build_field_list( fields )
