@@ -85,6 +85,33 @@ class TestReader < MiniTest::Test
 
 			end
 
+		end
+
+		assert_equal true, log_file_opened
+
+	end
+
+
+	def test_reader_blacklist
+
+		log_file_opened = false
+		log_filename = File.join( 'test', 'test_files', 'test_log.px4log' )
+
+		Px4LogReader.open( log_filename ) do |reader|
+
+			log_file_opened = true
+
+			# The log file associated with this test case contains the following
+			# messages in the specified order. Validate the order and context.
+			#
+			# 1) TIME
+			# 2) STAT
+			# 3) IMU
+			# 4) SENS
+			# 5) IMU1
+			# 6) VTOL
+			# 7) GPS
+			#
 
 			index = 0
 			expected_message_names = ['TIME','IMU','SENS','VTOL','GPS']
@@ -114,9 +141,58 @@ class TestReader < MiniTest::Test
 		end
 
 		assert_equal true, log_file_opened
-
 	end
 
+	def test_reader_whitelist
+		
+		log_file_opened = false
+		log_filename = File.join( 'test', 'test_files', 'test_log.px4log' )
+
+		Px4LogReader.open( log_filename ) do |reader|
+
+			log_file_opened = true
+
+			# The log file associated with this test case contains the following
+			# messages in the specified order. Validate the order and context.
+			#
+			# 1) TIME
+			# 2) STAT
+			# 3) IMU
+			# 4) SENS
+			# 5) IMU1
+			# 6) VTOL
+			# 7) GPS
+			#
+
+			index = 0
+			expected_message_names = ['TIME','SENS']
+			expected_message_types = [0x81,0x05]
+
+			reader.each_message( { with: ['TIME','SENS'] } ) do |message,context|
+
+				expected_name = expected_message_names[ index ]
+				expected_type = expected_message_types[ index ]
+
+				assert_equal expected_name, message.descriptor.name
+				assert_equal expected_type, message.descriptor.type
+
+				context_message = context.find_by_name( expected_name )
+				refute_nil context_message
+				assert_equal expected_name, context_message.descriptor.name
+
+				context_message = context.find_by_type( expected_type )
+				refute_nil context_message
+				assert_equal expected_type, context_message.descriptor.type
+
+				index += 1
+				assert_equal index, context.messages.size
+
+			end
+
+		end
+
+		assert_equal true, log_file_opened
+	end
 
 
 	def all_descriptors_found( descriptors )

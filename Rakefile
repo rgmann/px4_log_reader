@@ -10,10 +10,10 @@ task :default => :test
 def read_default_log_filename
 	log_filename = ''
 	File.open( 'default_log_path.txt', 'r' ) do |input|
-		log_filename = input.readline
+		log_filename = input.readline.strip
 	end
 
-	unless File.exist? log_filename
+	unless File.exist?( log_filename )
 		raise "Failed to find '#{log_filename}'"
 	end
 

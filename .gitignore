@@ -1,4 +1,4 @@
 *.sublime-*
 .DS_Store
 *.gem
-*.txt
+default_log_path.txt

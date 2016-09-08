@@ -25,9 +25,9 @@ or add this to your Gemfile if you use [Bundler](http://gembundler.com/):
      Px4LogReader.open( 'a_test_log.px4log' ) do |reader|
         reader.each_message( { with: [ 'ATT' ] } ) do |message,context|
 
-           att = [ messaged.get('roll'), message.get('pitch'), message.get('yaw') ]
+           att = [ messaged.get('Roll'), message.get('Pitch'), message.get('Yaw') ]
 
-           puts "ATT( @ #{context.find_by_name('GPS').get('time')} ): roll=#{att[0]}, pitch=#{att[1]}, yaw=#{att[2]}"
+           puts "ATT( @ #{context.find_by_name('GPS').get('GPSTime')} ): roll=#{att[0]}, pitch=#{att[1]}, yaw=#{att[2]}"
 
         end
      end
