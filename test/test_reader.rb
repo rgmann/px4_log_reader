@@ -10,11 +10,11 @@ class TestReader < MiniTest::Test
 
 		nonexistent_filename = 'nonexistent_logfile.px4log'
 
-		exception = assert_raises RuntimeError do
+		exception = assert_raises Px4LogReader::FileNotFoundError do
 			reader = Px4LogReader.open!( nonexistent_filename )
 		end
 
-		exception = assert_raises RuntimeError do
+		exception = assert_raises Px4LogReader::FileNotFoundError do
 			Px4LogReader.open!( nonexistent_filename ) do |reader|
 			end
 		end
@@ -35,7 +35,7 @@ class TestReader < MiniTest::Test
 	def test_reader
 
 		log_file_opened = false
-		log_filename = File.join()
+		log_filename = File.join( 'test', 'test_files', 'test_log.px4log' )
 
 		Px4LogReader.open( log_filename ) do |reader|
 
@@ -115,6 +115,13 @@ class TestReader < MiniTest::Test
 
 		assert_equal true, log_file_opened
 
+	end
+
+
+
+	def all_descriptors_found( descriptors )
+		# TODO: Validate all descriptors?
+		return true
 	end
 
 end

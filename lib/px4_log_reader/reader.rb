@@ -1,4 +1,4 @@
-module Px4LogReader
+module Px4LogReader	
 
 	def self.open_common( file, options, &block )
 
@@ -14,7 +14,7 @@ module Px4LogReader
 		reader = nil
 
 		if File.exist?( filename )
-			reader = self.open_common( File.open( filename, 'r' ), options, block )
+			reader = self.open_common( File.open( filename, 'r' ), options, &block )
 		end	
 
 		return reader
@@ -25,9 +25,9 @@ module Px4LogReader
 		reader = nil
 
 		if File.exist?( filename )
-			reader = self.open_common( File.open( filename, 'r' ), options, block )
+			reader = self.open_common( File.open( filename, 'r' ), options, &block )
 		else
-			raise FileNotFoundError.new
+			raise FileNotFoundError.new( filename )
 		end	
 
 		return reader
@@ -60,7 +60,7 @@ module Px4LogReader
 		def initialize( file, options )
 
 			opts = {
-				cache_filename: nil,
+				cache_filename: '',
 				buffer_size_kb: 10 * 1024
 			}.merge( options )
 
@@ -82,12 +82,14 @@ module Px4LogReader
 				else
 					@message_descriptors = LogFile::read_descriptors( @log_file, @descriptor_cache )
 				end
+
+				@message_descriptors[ FORMAT_MESSAGE.type ] = FORMAT_MESSAGE
 			end
 
 			return @message_descriptors
 		end
 
-		def each_message( options, &block )
+		def each_message( options = {}, &block )
 
 			opts ={
 				with: [],        # white list - empty means all minus those in without list
@@ -96,15 +98,20 @@ module Px4LogReader
 
 			opts[:with].map! do |val|
 				if val.class == String
-					descriptor = descriptors.find { |desc| desc.name == val }
+					descriptor = descriptors.values.find { |desc| desc.name == val }
 					val = descriptor.type
 				end
 			end
 
 			opts[:without].map! do |val|
 				if val.class == String
-					descriptor = descriptors.find { |desc| desc.name == val }
-					val = descriptor.type
+					descriptor = descriptors.values.find { |desc| desc.name == val }
+
+					if descriptor
+						val = descriptor.type
+					else
+						raise "Failed to find descriptor with name '#{val}'"
+					end
 				end
 			end
 
@@ -112,7 +119,7 @@ module Px4LogReader
 
 				loop do
 
-					message = LogFile::read_message( @buffers, @message_descriptors )
+					message = LogFile::read_message( @log_file, @message_descriptors )
 					break if message.nil?
 
 					# Added message to the set of latest messages.

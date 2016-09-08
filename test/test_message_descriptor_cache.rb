@@ -17,7 +17,7 @@ class TestMessageDescriptorCache < MiniTest::Test
 
 		# Create a couple of descriptors
 		w_descriptors = {}
-		descriptor = Px4LogReaderIncludes::MessageDescriptor.new({
+		descriptor = Px4LogReader::MessageDescriptor.new({
 			name: 'FMT',
 			type: 0x80,
 			length: 89,
@@ -25,7 +25,7 @@ class TestMessageDescriptorCache < MiniTest::Test
 			fields: [ "Type", "Length", "Name", "Format", "Labels" ] })
 		w_descriptors[ descriptor.type ] = descriptor.dup
 
-		descriptor = Px4LogReaderIncludes::MessageDescriptor.new({
+		descriptor = Px4LogReader::MessageDescriptor.new({
 			name: 'ATT',
 			type: 0x23,
 			length: 18,
@@ -34,7 +34,7 @@ class TestMessageDescriptorCache < MiniTest::Test
 		w_descriptors[ descriptor.type ] = descriptor.dup
 
 
-		cache = Px4LogReaderIncludes::MessageDescriptorCache.new( cache_filename )
+		cache = Px4LogReader::MessageDescriptorCache.new( cache_filename )
 		assert_equal false, cache.exist?
 
 		cache.write_descriptors( w_descriptors )

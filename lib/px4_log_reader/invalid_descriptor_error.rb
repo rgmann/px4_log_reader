@@ -1,4 +1,4 @@
-module Px4LogReaderIncludes
+module Px4LogReader
 
 	class Error < StandardError
 
@@ -14,6 +14,12 @@ module Px4LogReaderIncludes
 			super( message )
 		end
 
+	end
+
+	class FileNotFoundError < Error
+		def initialize( filename )
+			super( "Failed to find '#{filename}'" )
+		end
 	end
 
 end

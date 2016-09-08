@@ -1,5 +1,5 @@
 
-module Px4LogReaderIncludes
+module Px4LogReader
 
 	module LogFile
 
@@ -35,12 +35,12 @@ module Px4LogReaderIncludes
 
 				if descriptor_message
 
-					message_descriptor = Px4LogReaderIncludes::MessageDescriptor.new
+					message_descriptor = Px4LogReader::MessageDescriptor.new
 					message_descriptor.from_message( descriptor_message )
 
 				end
 
-			rescue Px4LogReaderIncludes::InvalidDescriptorError => error
+			rescue Px4LogReader::InvalidDescriptorError => error
 
 				if skip_corrupt
 					retry

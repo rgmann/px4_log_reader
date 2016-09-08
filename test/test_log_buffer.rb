@@ -9,7 +9,7 @@ class TestLogBuffer < MiniTest::Test
 	def test_buffer_create
 
 		buffer_size = 256
-		buffer = Px4LogReaderIncludes::LogBuffer.new( buffer_size )
+		buffer = Px4LogReader::LogBuffer.new( buffer_size )
 
 		assert_equal buffer_size, buffer.data.size
 		assert_equal Array.new( buffer_size, 0x00 ), buffer.data
@@ -22,7 +22,7 @@ class TestLogBuffer < MiniTest::Test
 	def test_buffer_read_write
 
 		buffer_size = 256
-		buffer = Px4LogReaderIncludes::LogBuffer.new( buffer_size )
+		buffer = Px4LogReader::LogBuffer.new( buffer_size )
 
 		test_filename = './test_buffer_read_write.bin'
 		generate_test_file( test_filename, buffer_size )
@@ -58,7 +58,7 @@ class TestLogBuffer < MiniTest::Test
 
 	def test_buffer_array
 
-		buffer_array = Px4LogReaderIncludes::LogBufferArray.new
+		buffer_array = Px4LogReader::LogBufferArray.new
 
 		file_size = 256
 		test_filename = './test_buffer_array.bin'
@@ -88,7 +88,7 @@ class TestLogBuffer < MiniTest::Test
 
 
 	def test_buffer_array_refill
-		buffer_array = Px4LogReaderIncludes::LogBufferArray.new
+		buffer_array = Px4LogReader::LogBufferArray.new
 
 		file_size = 256
 		test_filename = './test_buffer_array_refill.bin'

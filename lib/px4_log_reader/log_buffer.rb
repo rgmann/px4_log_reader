@@ -1,4 +1,4 @@
-module Px4LogReaderIncludes
+module Px4LogReader
 
 	class LogBuffer
 

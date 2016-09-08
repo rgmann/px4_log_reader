@@ -1,4 +1,4 @@
-module Px4LogReaderIncludes
+module Px4LogReader
 
 	class LogMessage
 		attr_reader :descriptor
@@ -6,9 +6,6 @@ module Px4LogReaderIncludes
 		def initialize( descriptor, fields )
 			@descriptor = descriptor
 			@fields     = fields
-		end
-		def to_csv_line(timestamp)
-			return [ timestamp ].concat( @fields ).join(',')
 		end
 
 		def get( index )

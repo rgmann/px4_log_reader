@@ -13,7 +13,7 @@ class TestMessageDescriptor < MiniTest::Test
 
 		px4_format_specifier = 'BBnNZ'
 		ruby_format_specifier =
-			Px4LogReaderIncludes::MessageDescriptor.build_format_specifier( px4_format_specifier )
+			Px4LogReader::MessageDescriptor.build_format_specifier( px4_format_specifier )
 
 		assert_equal 'CCA4A16A64', ruby_format_specifier
 	end
@@ -26,11 +26,11 @@ class TestMessageDescriptor < MiniTest::Test
 
 		fields = [ 0x24, 32, 'test', 'IIbMh', 'id,counts,flag,length,ord' ]
 
-		message = Px4LogReaderIncludes::LogMessage.new(
-			Px4LogReaderIncludes::FORMAT_MESSAGE,
+		message = Px4LogReader::LogMessage.new(
+			Px4LogReader::FORMAT_MESSAGE,
 			fields )
 
-		descriptor = Px4LogReaderIncludes::MessageDescriptor.new
+		descriptor = Px4LogReader::MessageDescriptor.new
 		assert_equal nil, descriptor.type
 		assert_equal nil, descriptor.name
 		assert_equal nil, descriptor.length

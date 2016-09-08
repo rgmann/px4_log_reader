@@ -1,4 +1,4 @@
-module Px4LogReaderIncludes
+module Px4LogReader
 
 	class MessageDescriptorCache
 
@@ -40,11 +40,13 @@ module Px4LogReaderIncludes
 		end
 
 		def write_descriptors( message_descriptors )
-			File.open( @cache_filename, 'w+' ) do |output|
-				message_descriptors.each do |message_type,descriptor|
-					descriptor_data = Marshal.dump( descriptor )
-					output.write( [ descriptor_data.size ].pack('L') )
-					output.write( descriptor_data )
+			if !@cache_filename.empty? && File.exist?( File.dirname( @cache_filename ) )
+				File.open( @cache_filename, 'w+' ) do |output|
+					message_descriptors.each do |message_type,descriptor|
+						descriptor_data = Marshal.dump( descriptor )
+						output.write( [ descriptor_data.size ].pack('L') )
+						output.write( descriptor_data )
+					end
 				end
 			end
 		end

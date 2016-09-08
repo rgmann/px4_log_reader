@@ -1,5 +1,5 @@
 
-module Px4LogReaderIncludes
+module Px4LogReader
 
 	class MessageDescriptor
 
@@ -175,7 +175,7 @@ module Px4LogReaderIncludes
 	#
 	# Message descriptor for format messages
 	#
-	FORMAT_MESSAGE = Px4LogReaderIncludes::MessageDescriptor.new({
+	FORMAT_MESSAGE = Px4LogReader::MessageDescriptor.new({
 		name: 'FMT',
 		type: 0x80,
 		length: 89,
