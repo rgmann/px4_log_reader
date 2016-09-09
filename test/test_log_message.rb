@@ -30,14 +30,45 @@
 # 
 # 
 
-module Px4LogReader
+require 'minitest/autorun'
+require 'px4_log_reader'
 
-	class InvalidDescriptorError < Error
+class TestLogMessage < MiniTest::Test
 
-		def initialize( message )
-			super( message )
-		end
+	def setup
+	end
 
+	def teardown
+	end
+
+	def test_get_field
+		fields = [ 0x24, 32, 'test', 'IIbMh', 'id,counts,flag,length,ord' ]
+
+		message = Px4LogReader::LogMessage.new(
+			Px4LogReader::FORMAT_MESSAGE,
+			fields )
+
+		assert_equal fields[0], message.get('Type')
+		assert_equal fields[1], message.get('Length')
+		assert_equal fields[2], message.get('Name')
+		assert_equal fields[3], message.get('Format')
+		assert_equal fields[4], message.get('Labels')
+
+		assert_nil message.get('name')
+		assert_nil message.get('ThisFieldDoesNotExist')
+	end
+
+	def test_pack_message
+		fields = [ 0x24, 32, 'test', 'IIbMh', 'id,counts,flag,length,ord' ]
+
+		message = Px4LogReader::LogMessage.new(
+			Px4LogReader::FORMAT_MESSAGE,
+			fields )
+
+		# This is a format message, so the format specifier is 'BBnNZ'
+		expected_length = 1 + 1 + 4 + 16 + 64
+
+		assert_equal expected_length, message.pack.length
 	end
 
 end

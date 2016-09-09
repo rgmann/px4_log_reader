@@ -33,8 +33,10 @@
 module Px4LogReader
 
 	class LogMessage
+
 		attr_reader :descriptor
 		attr_reader :fields
+
 		def initialize( descriptor, fields )
 			@descriptor = descriptor
 			@fields     = fields
@@ -42,21 +44,18 @@ module Px4LogReader
 
 		def get( index )
 
-			index = index
 			if index.class == String
 				index = descriptor.field_list[ index ]
 			end
 
-			return @fields[ index ]
+			return @fields[ index ] if index
+			return nil
 		end
 
 		def pack
 			return @descriptor.pack_message( @fields )
 		end
 
-		def to_s
-			return to_csv_line( Time.now )
-		end
 	end
 
 end

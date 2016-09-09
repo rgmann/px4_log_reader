@@ -32,12 +32,10 @@
 
 module Px4LogReader
 
-	class InvalidDescriptorError < Error
-
-		def initialize( message )
-			super( message )
+	class FileNotFoundError < Error
+		def initialize( filename )
+			super( "Failed to find '#{filename}'" )
 		end
-
 	end
 
 end

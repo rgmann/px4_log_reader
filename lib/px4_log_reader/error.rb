@@ -32,9 +32,9 @@
 
 module Px4LogReader
 
-	class InvalidDescriptorError < Error
+	class Error < StandardError
 
-		def initialize( message )
+		def initialize( message='' )
 			super( message )
 		end
 

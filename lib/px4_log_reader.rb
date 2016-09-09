@@ -31,6 +31,8 @@
 # 
 
 require 'px4_log_reader/version'
+require 'px4_log_reader/error'
+require 'px4_log_reader/file_not_found_error'
 require 'px4_log_reader/invalid_descriptor_error'
 require 'px4_log_reader/log_message'
 require 'px4_log_reader/message_descriptor'
