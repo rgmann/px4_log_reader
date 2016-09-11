@@ -115,20 +115,24 @@ module Px4LogReader
 
 			begin
 
-				data = buffered_io.read(2)
+				data = buffered_io.read_nonblock( HEADER_MARKER.length )
 
-				if data && data.length == 2
+				if data && ( data.length == HEADER_MARKER.length )
 
 					while !data.empty? && message_type.nil? do
 
-						if ( byte = buffered_io.read(1) )
+						if ( byte = buffered_io.read_nonblock( 1 ) )
 							data << byte
 						end
 
-						if data.unpack('CCC')[0,2] == HEADER_MARKER
-							message_type = data.unpack('CCC').last & 0xFF
+						if data.length >= ( HEADER_MARKER.length + 1 )
+							if data.unpack('CCC')[0,2] == HEADER_MARKER
+								message_type = data.unpack('CCC').last & 0xFF
+							else
+								data = data[1..-1]
+							end
 						else
-							data = data[1..-1]
+							data = []
 						end
 
 					end
@@ -146,9 +150,9 @@ module Px4LogReader
 
 
 		def self.write_message( io, message )
-			io.write HEADER_MARKER.pack('CC')
-			io.write [ message.descriptor.type ].pack('C')
-			io.write message.pack
+			io.write( HEADER_MARKER.pack('CC') )
+			io.write( [ message.descriptor.type ].pack('C') )
+			io.write( message.pack )
 		end
 
 	end

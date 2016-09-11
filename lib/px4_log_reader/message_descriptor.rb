@@ -209,7 +209,7 @@ module Px4LogReader
 	FORMAT_MESSAGE = Px4LogReader::MessageDescriptor.new({
 		name: 'FMT',
 		type: 0x80,
-		length: 89,
+		length: 86,
 		format: 'BBnNZ',
 		fields: [ "Type", "Length", "Name", "Format", "Labels" ] }).freeze
 

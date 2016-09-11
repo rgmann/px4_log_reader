@@ -41,33 +41,96 @@ class TestLogFile < MiniTest::Test
 	def teardown
 	end
 
-	def test_read_descriptors
+	class MockFileIO
 
-		# log_file = open_log_file
-		# descriptors = Px4LogReader::LogFile.read_descriptors( log_file )
+		attr_reader :buffer
 
-		# puts "Found #{descriptors.count} descriptors"
-		# descriptors.each do |type,descriptor|
-		# 	puts "  #{descriptor.name}"
-		# end
+		def initialize
+			@buffer = ''
+		end
 
-		# log_file.close
+		def reset
+			@buffer = ''
+		end
 
-		# TODO
+		def read( byte_count = nil )
+			data = nil
+
+			if byte_count >= @buffer.size
+				data = @buffer.dup
+				@buffer = ''
+			else
+				data = @buffer[ 0, byte_count ].dup
+				@buffer = @buffer[ byte_count .. -1 ]
+			end
+
+			data
+		end
+
+		def read_nonblock( byte_count = nil )
+			return read( byte_count )
+		end
+
+		def write( data )
+			@buffer << data
+		end
 
 	end
 
-	def test_read_message
+	def test_read_header
 
-		# log_file = open_log_file
-		# descriptors = Px4LogReader::LogFile.read_descriptors( log_file )
+		# First, test that read_message_header returns null if the file is exhausted
+		# without finding a message header.
+		mock_io = MockFileIO.new
+		mock_io.write( rand_data( 256 ).pack('C*') )
 
-		# log_file.rewind
-		# message = Px4LogReader::LogFile.read_message( log_file, descriptors )
+		assert_nil Px4LogReader::LogFile.read_message_header( mock_io )
+		assert_equal true, mock_io.buffer.empty?
+
+
+		# Insert a message header with type = 0x80 into the middle of the data.
+		mock_io = MockFileIO.new
+
+		test_data = rand_data( 256 )
+		test_data.concat( Px4LogReader::LogFile::HEADER_MARKER )
+		test_data.concat( [ Px4LogReader::FORMAT_MESSAGE.type ] )
+		test_data.concat( rand_data( 256 ) )
+		mock_io.write( test_data.pack('C*') )
+
+		assert_equal Px4LogReader::FORMAT_MESSAGE.type, Px4LogReader::LogFile.read_message_header( mock_io )
+		assert_equal 256, mock_io.buffer.size
+
+		assert_nil Px4LogReader::LogFile.read_message_header( mock_io )
+		assert_equal true, mock_io.buffer.empty?
+
+
+		# Test with a buffer that ends in a message header sync pattern.
+		mock_io = MockFileIO.new
+
+		test_data = rand_data( 64 )
+		test_data.concat( Px4LogReader::LogFile::HEADER_MARKER )
+		mock_io.write( test_data.pack('C*') )
+
+		assert_nil Px4LogReader::LogFile.read_message_header( mock_io )
+		assert_equal true, mock_io.buffer.empty?
 		
-		# puts message.descriptor
+	end
 
-		# TODO
+	def test_write_message
+
+		mock_io = MockFileIO.new
+
+		fields = [ 0x24, 32, 'test', 'IIbMh', 'id,counts,flag,length,ord' ]
+
+		message = Px4LogReader::LogMessage.new(
+			Px4LogReader::FORMAT_MESSAGE,
+			fields )
+
+		Px4LogReader::LogFile.write_message( mock_io, message )
+
+		expected_length = Px4LogReader::FORMAT_MESSAGE.length + Px4LogReader::LogFile::HEADER_MARKER.length + 1
+		assert_equal expected_length, mock_io.buffer.length 
+		assert_equal [ 0xA3, 0x95, 0x80 ], mock_io.buffer[0,3].unpack('C*')
 
 	end
 
@@ -75,6 +138,21 @@ class TestLogFile < MiniTest::Test
 	def open_log_file
 		log_file = File.open( File.join( 'test', 'test_files', 'test_log.px4log' ), 'r' )
 		log_file
+	end
+
+	# Generate array of random bytes (0-255) that does not contain any message
+	# header bytes.
+	def rand_data( byte_count )
+		test_data = []
+		byte_count.times do
+			byte = 0
+			loop do
+				byte = rand(256)
+				break unless Px4LogReader::LogFile::HEADER_MARKER.include?( byte )
+			end
+			test_data << byte
+		end
+		return test_data
 	end
 
 end
