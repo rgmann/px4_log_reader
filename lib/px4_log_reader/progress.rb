@@ -39,7 +39,7 @@ module Px4LogReader
 		def initialize( active_file )
 			@active_file = active_file
 
-			active_file.seek( 0, :END )
+			active_file.seek( 0, IO::SEEK_END )
 			@file_size = active_file.pos
 			active_file.seek( 0 )
 		end

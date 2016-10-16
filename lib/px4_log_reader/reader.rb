@@ -236,7 +236,7 @@ module Px4LogReader
 			if @log_file
 				seek_offset = offset
 				seek_offset = @progress.file_size if offset > @progress.file_size
-				@log_file.seek( seek_offset )
+				@log_file.seek( seek_offset, IO::SEEK_SET )
 			end
 		end
 
