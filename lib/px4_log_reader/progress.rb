@@ -30,14 +30,27 @@
 # 
 # 
 
-require 'px4_log_reader/version'
-require 'px4_log_reader/error'
-require 'px4_log_reader/file_not_found_error'
-require 'px4_log_reader/invalid_descriptor_error'
-require 'px4_log_reader/log_message'
-require 'px4_log_reader/message_descriptor'
-require 'px4_log_reader/log_buffer'
-require 'px4_log_reader/progress'
-require 'px4_log_reader/log_file'
-require 'px4_log_reader/message_descriptor_cache'
-require 'px4_log_reader/reader'
+module Px4LogReader
+
+	class Progress
+
+		attr_accessor :file_size
+
+		def initialize( active_file )
+			@active_file = active_file
+
+			active_file.seek( 0, :END )
+			@file_size = active_file.pos
+			active_file.seek( 0 )
+		end
+
+		def file_offset
+			@active_file.pos
+		end
+
+		def percentage
+			return ( file_offset.to_f / @file_size.to_f )
+		end
+	end
+
+end

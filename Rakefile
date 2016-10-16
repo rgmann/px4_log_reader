@@ -131,7 +131,7 @@ task :cut_log, :count, :skip, :filename do |t,args|
 
 			read_count = args[:count].to_i
 			read_count.times do
-				message = Px4LogReader::LogFile.read_message( input, message_descriptors )
+				message, offset = Px4LogReader::LogFile.read_message( input, message_descriptors )
 				Px4LogReader::LogFile.write_message( output, message )
 			end
 		end
@@ -148,7 +148,9 @@ task :dump, :filename do |t,args|
 
 	File.open( args[:filename], 'r' ) do |input|
 		count = 1
-		while ( message = Px4LogReader::LogFile.read_message( input, message_descriptors ) ) do
+		loop do
+			message, offset = Px4LogReader::LogFile.read_message( input, message_descriptors )
+			break if message.nil?
 			puts "#{count}) #{message.descriptor.name}, #{'%02X'%message.descriptor.type}"
 			count += 1
 		end

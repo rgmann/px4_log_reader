@@ -35,17 +35,32 @@ module Px4LogReader
 	module LogFile
 
 		HEADER_MARKER = [0xA3,0x95]
-		HEADER_LENGTH = 3
+		HEADER_LENGTH = HEADER_MARKER.length + 1
 		FORMAT_DESCRIPTOR_TABLE = { FORMAT_MESSAGE.type => FORMAT_MESSAGE }.freeze
 
-		def self.read_descriptors( buffered_io, descriptor_cache=nil )
+		@@debug = false
+
+		def self.enable_debug( enable )
+			@@debug = enable
+		end
+
+		def self.read_descriptors( file, descriptor_cache=nil, &block )
 
 			message_descriptors = {}
 
-			while ( message_descriptor = read_descriptor( buffered_io ) ) do
-				if !message_descriptors.keys.include? message_descriptor.type
-					message_descriptors[ message_descriptor.type ] = message_descriptor
+			loop do
+
+				message_descriptor, file_offset = read_descriptor( file )
+
+				if message_descriptor
+					if !message_descriptors.keys.include? message_descriptor.type
+						message_descriptors[ message_descriptor.type ] = message_descriptor
+						yield message_descriptor if block_given?
+					end
+				else
+					break
 				end
+
 			end
 
 			# If a cache filename was supplied, dump the descriptors to the cache
@@ -56,22 +71,24 @@ module Px4LogReader
 			return message_descriptors
 		end
 
-		def self.read_descriptor( buffered_io, skip_corrupt=true )
+		def self.read_descriptor( file, skip_corrupt=true, &block )
 
 			message_descriptor = nil
+			offset             = nil
 
 			begin
 
-				descriptor_message = read_message( buffered_io, FORMAT_DESCRIPTOR_TABLE )
+				descriptor_message, offset = read_message( file, FORMAT_DESCRIPTOR_TABLE, true, &block )
 
 				if descriptor_message
-
 					message_descriptor = Px4LogReader::MessageDescriptor.new
 					message_descriptor.from_message( descriptor_message )
-
 				end
 
 			rescue Px4LogReader::InvalidDescriptorError => error
+
+				puts "#{error.class}: #{error.message}"
+				puts error.backtrace.join("\n")
 
 				if skip_corrupt
 					retry
@@ -79,57 +96,83 @@ module Px4LogReader
 					raise error
 				end
 
-			rescue StandardError => e
-				puts "#{e.class}: #{e.message}"
-				puts e.backtrace.join("\n")
+			rescue StandardError => error
+				puts "#{error.class}: #{error.message}"
+				puts error.backtrace.join("\n")
 			end
 
-			return message_descriptor
+			return message_descriptor, offset
 		end
 
-		def self.read_message( buffered_io, message_descriptors )
+		def self.read_message( file, message_descriptors, stop_on_no_match = false, &block )
 
 			message = nil
-			while message.nil? do
-				message_type = read_message_header( buffered_io )
+			offset  = nil
+			eof     = false
+
+			while message.nil? && !eof do
+				message_type, offset = read_message_header( file )
+				eof                  = message_type.nil?
 
 				if message_type
 
 					message_descriptor = message_descriptors[ message_type ]
 
-					if message_descriptor
-						message_data = buffered_io.read( message_descriptor.length - HEADER_LENGTH )
-						message = message_descriptor.unpack_message( message_data )
-					end
+					yield offset if block_given?
 
-				elsif message_type.nil?
-					break
+					if message_descriptor
+
+						message_data = file.read( message_descriptor.length - HEADER_LENGTH )
+						print_data( message_data ) if @@debug
+						message = message_descriptor.unpack_message( message_data )
+
+					elsif stop_on_no_match
+
+						# Seek back to the beginning of the header for the non-
+						# matching message.
+						file.seek( -1 * HEADER_LENGTH, :CUR )
+						break
+
+					end
 				end
 			end
 
-			return message
+			return message, offset
 		end
 
-		def self.read_message_header( buffered_io )
+		#
+		# Read the next message header from the input stream. Returns the 
+		# message type and current file offset. If no header is found, the
+		# returned message type is nil and the offset is the end of the file.
+		#
+		def self.read_message_header( file )
 			message_type = nil
+			offset       = nil
+			drop_count 	 = 0
 
 			begin
 
-				data = buffered_io.read_nonblock( HEADER_MARKER.length )
+				data   = file.read_nonblock( HEADER_MARKER.length )
+				offset = file.pos
 
 				if data && ( data.length == HEADER_MARKER.length )
 
 					while !data.empty? && message_type.nil? do
 
-						if ( byte = buffered_io.read_nonblock( 1 ) )
+						if ( byte = file.read_nonblock( 1 ) )
 							data << byte
 						end
+						offset = file.pos
 
 						if data.length >= ( HEADER_MARKER.length + 1 )
-							if data.unpack('CCC')[0,2] == HEADER_MARKER
-								message_type = data.unpack('CCC').last & 0xFF
+
+							unpacked_data = data.unpack('C*')
+							
+							if unpacked_data[ 0, HEADER_MARKER.length ] == HEADER_MARKER
+								message_type = unpacked_data.last & 0xFF
 							else
 								data = data[1..-1]
+								drop_count += 1
 							end
 						else
 							data = []
@@ -145,7 +188,7 @@ module Px4LogReader
 				puts error.backtrace.join("\n")
 			end
 
-			return message_type
+			return message_type, offset
 		end
 
 
@@ -153,6 +196,21 @@ module Px4LogReader
 			io.write( HEADER_MARKER.pack('CC') )
 			io.write( [ message.descriptor.type ].pack('C') )
 			io.write( message.pack )
+		end
+
+
+		def self.print_data( buffer )
+			text = ''
+			buffer.unpack( 'C*' ).each_with_index do |byte,count|
+				if (count % 16) == 0
+					text << "#{count/16}: "
+				end
+				text << ('%02X'%byte) << ' '
+				if (((count+1) % 16) == 0)
+					text << "\n"
+				end
+			end
+			puts text
 		end
 
 	end

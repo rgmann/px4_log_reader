@@ -84,36 +84,56 @@ class TestReader < MiniTest::Test
 			# The log file associated with this test case contains the following
 			# messages in the specified order. Validate the order and context.
 			#
-			# 1) TIME
-			# 2) STAT
-			# 3) IMU
-			# 4) SENS
-			# 5) IMU1
-			# 6) VTOL
-			# 7) GPS
+			# 1: LPOS
+			# 2: GPOS
+			# 3: BATT
+			# 4: PWR
+			# 5: EST0
+			# 6: EST1
+			# 7: EST2
+			# 8: EST3
+			# 9: CTS
+			# 10: ATT
+			# 11: TIME
+			# 12: IMU
+			# 13: SENS
+			# 14: IMU1
+			# 15: ATSP
+			# 16: ARSP
+			# 17: OUT0
+			# 18: ATTC
 			#
 			index = 0
-			expected_message_names = ['TIME','STAT','IMU','SENS','IMU1','VTOL','GPS']
-			expected_message_types = [0x81,0x0A,0x04,0x05,0x16,0x2B,0x08]
+			expected_messages = [
+				['LPOS',0x06],
+				['GPOS',0x10],
+				['BATT',0x14],
+				['PWR',0x18],
+				['EST0',0x20],
+				['EST1',0x21],
+				['EST2',0x22]]
 
-			reader.each_message do |message,context|
+			reader.each_message do |message|
 
-				expected_name = expected_message_names[ index ]
-				expected_type = expected_message_types[ index ]
+				# puts "#{index+1}: #{message.descriptor.name}, #{'%02X'%message.descriptor.type}"
+				break if index >= expected_messages.size
+
+				expected_name = expected_messages[ index ][0]
+				expected_type = expected_messages[ index ][1]
 
 				assert_equal expected_name, message.descriptor.name
 				assert_equal expected_type, message.descriptor.type
 
-				context_message = context.find_by_name( expected_name )
+				context_message = reader.context.find_by_name( expected_name )
 				refute_nil context_message
 				assert_equal expected_name, context_message.descriptor.name
 
-				context_message = context.find_by_type( expected_type )
+				context_message = reader.context.find_by_type( expected_type )
 				refute_nil context_message
 				assert_equal expected_type, context_message.descriptor.type
 
 				index += 1
-				assert_equal index, context.messages.size
+				assert_equal index, reader.context.messages.size
 
 			end
 
@@ -133,40 +153,36 @@ class TestReader < MiniTest::Test
 
 			log_file_opened = true
 
-			# The log file associated with this test case contains the following
-			# messages in the specified order. Validate the order and context.
-			#
-			# 1) TIME
-			# 2) STAT
-			# 3) IMU
-			# 4) SENS
-			# 5) IMU1
-			# 6) VTOL
-			# 7) GPS
-			#
+			# See test_reader for the un-filtered list of messages. This test
+			# expects the same list, minus the GPOS and EST1 messages.
 
 			index = 0
-			expected_message_names = ['TIME','IMU','SENS','VTOL','GPS']
-			expected_message_types = [0x81,0x04,0x05,0x2B,0x08]
+			expected_messages = [
+				['LPOS',0x06],
+				['BATT',0x14],
+				['PWR',0x18],
+				['EST0',0x20],
+				['EST2',0x22]]
 
-			reader.each_message( { without: ['STAT','IMU1'] } ) do |message,context|
+			reader.each_message( { without: ['GPOS','EST1'] } ) do |message|
 
-				expected_name = expected_message_names[ index ]
-				expected_type = expected_message_types[ index ]
+				break if index >= expected_messages.size
+
+				expected_name = expected_messages[ index ][0]
+				expected_type = expected_messages[ index ][1]
 
 				assert_equal expected_name, message.descriptor.name
 				assert_equal expected_type, message.descriptor.type
 
-				context_message = context.find_by_name( expected_name )
+				context_message = reader.context.find_by_name( expected_name )
 				refute_nil context_message
 				assert_equal expected_name, context_message.descriptor.name
 
-				context_message = context.find_by_type( expected_type )
+				context_message = reader.context.find_by_type( expected_type )
 				refute_nil context_message
 				assert_equal expected_type, context_message.descriptor.type
 
 				index += 1
-				assert_equal index, context.messages.size
 
 			end
 
@@ -184,40 +200,33 @@ class TestReader < MiniTest::Test
 
 			log_file_opened = true
 
-			# The log file associated with this test case contains the following
-			# messages in the specified order. Validate the order and context.
-			#
-			# 1) TIME
-			# 2) STAT
-			# 3) IMU
-			# 4) SENS
-			# 5) IMU1
-			# 6) VTOL
-			# 7) GPS
-			#
+			# See test_reader for the un-filtered list of messages. This test
+			# expects just the GPOS and PWR messages.
 
 			index = 0
-			expected_message_names = ['TIME','SENS']
-			expected_message_types = [0x81,0x05]
+			expected_messages = [
+				['GPOS',0x10],
+				['PWR',0x18]]
 
-			reader.each_message( { with: ['TIME','SENS'] } ) do |message,context|
+			reader.each_message( { with: ['GPOS','PWR'] } ) do |message|
 
-				expected_name = expected_message_names[ index ]
-				expected_type = expected_message_types[ index ]
+				break if index >= expected_messages.size
+
+				expected_name = expected_messages[ index ][0]
+				expected_type = expected_messages[ index ][1]
 
 				assert_equal expected_name, message.descriptor.name
 				assert_equal expected_type, message.descriptor.type
 
-				context_message = context.find_by_name( expected_name )
+				context_message = reader.context.find_by_name( expected_name )
 				refute_nil context_message
 				assert_equal expected_name, context_message.descriptor.name
 
-				context_message = context.find_by_type( expected_type )
+				context_message = reader.context.find_by_type( expected_type )
 				refute_nil context_message
 				assert_equal expected_type, context_message.descriptor.type
 
 				index += 1
-				assert_equal index, context.messages.size
 
 			end
 

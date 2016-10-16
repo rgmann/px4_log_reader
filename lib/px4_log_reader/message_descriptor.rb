@@ -34,6 +34,8 @@ module Px4LogReader
 
 	class MessageDescriptor
 
+		@@validation_level = :strict
+
 		attr_reader :name
 		attr_reader :type
 		attr_reader :length
@@ -85,9 +87,16 @@ module Px4LogReader
 
 				fields = fields_string.split(',')
 
-				if fields.length != @format.length
+				if (@@validation_level == :strict) && (fields.length != @format.length)
+					puts "fields = #{fields_string}"
+					puts "format = '#{@format}'"
+					puts "length = #{@length}"
+					puts "type = 0x#{'%02X'% @type}"
 					raise InvalidDescriptorError.new(
 						"Field count must match format length: expected #{@format.length}; found #{fields.length}")
+				elsif (@@validation_level == :lenient) && (fields.length > @format.length)
+					raise InvalidDescriptorError.new(
+						"Field count is greater than format length: expected #{@format.length}; found #{fields.length}")
 				else
 					@field_list = MessageDescriptor.build_field_list( fields )
 				end
@@ -209,7 +218,7 @@ module Px4LogReader
 	FORMAT_MESSAGE = Px4LogReader::MessageDescriptor.new({
 		name: 'FMT',
 		type: 0x80,
-		length: 86,
+		length: 89, # header.size + B(1) + B(1) + n(4) + N(16) + Z(64)
 		format: 'BBnNZ',
 		fields: [ "Type", "Length", "Name", "Format", "Labels" ] }).freeze
 

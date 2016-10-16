@@ -41,84 +41,51 @@ class TestLogFile < MiniTest::Test
 	def teardown
 	end
 
-	class MockFileIO
-
-		attr_reader :buffer
-
-		def initialize
-			@buffer = ''
-		end
-
-		def reset
-			@buffer = ''
-		end
-
-		def read( byte_count = nil )
-			data = nil
-
-			if byte_count >= @buffer.size
-				data = @buffer.dup
-				@buffer = ''
-			else
-				data = @buffer[ 0, byte_count ].dup
-				@buffer = @buffer[ byte_count .. -1 ]
-			end
-
-			data
-		end
-
-		def read_nonblock( byte_count = nil )
-			return read( byte_count )
-		end
-
-		def write( data )
-			@buffer << data
-		end
-
-	end
-
 	def test_read_header
 
 		# First, test that read_message_header returns null if the file is exhausted
 		# without finding a message header.
-		mock_io = MockFileIO.new
-		mock_io.write( rand_data( 256 ).pack('C*') )
-
-		assert_nil Px4LogReader::LogFile.read_message_header( mock_io )
-		assert_equal true, mock_io.buffer.empty?
+		mock_io( rand_data( 256 ).pack('C*') ) do |writer,reader|
+			assert_equal [ nil, 256 ], Px4LogReader::LogFile.read_message_header( reader )
+			assert_equal 256, reader.pos
+		end
 
 
 		# Insert a message header with type = 0x80 into the middle of the data.
-		mock_io = MockFileIO.new
-
 		test_data = rand_data( 256 )
 		test_data.concat( Px4LogReader::LogFile::HEADER_MARKER )
 		test_data.concat( [ Px4LogReader::FORMAT_MESSAGE.type ] )
-		test_data.concat( rand_data( 256 ) )
-		mock_io.write( test_data.pack('C*') )
+		test_data.concat( rand_data( 256 ) )		
+		mock_io( test_data.pack('C*') ) do |writer,reader|
 
-		assert_equal Px4LogReader::FORMAT_MESSAGE.type, Px4LogReader::LogFile.read_message_header( mock_io )
-		assert_equal 256, mock_io.buffer.size
+			message_type, offset = Px4LogReader::LogFile.read_message_header( reader )
 
-		assert_nil Px4LogReader::LogFile.read_message_header( mock_io )
-		assert_equal true, mock_io.buffer.empty?
+			assert_equal Px4LogReader::FORMAT_MESSAGE.type, message_type
+			assert_equal 256 + Px4LogReader::LogFile::HEADER_LENGTH, offset
+
+			message_type, offset = Px4LogReader::LogFile.read_message_header( reader )
+			assert_nil message_type
+			assert_equal true, reader.eof?
+			assert_equal test_data.size, offset
+
+		end
 
 
 		# Test with a buffer that ends in a message header sync pattern.
-		mock_io = MockFileIO.new
-
 		test_data = rand_data( 64 )
 		test_data.concat( Px4LogReader::LogFile::HEADER_MARKER )
-		mock_io.write( test_data.pack('C*') )
+		mock_io( test_data.pack('C*') ) do |writer,reader|
 
-		assert_nil Px4LogReader::LogFile.read_message_header( mock_io )
-		assert_equal true, mock_io.buffer.empty?
+			message_type, offset = Px4LogReader::LogFile.read_message_header( reader )
+			assert_nil message_type
+			assert_equal true, reader.eof?
+			assert_equal test_data.size, offset
+
+		end
 		
 	end
 
 	def test_write_message
-
-		mock_io = MockFileIO.new
 
 		fields = [ 0x24, 32, 'test', 'IIbMh', 'id,counts,flag,length,ord' ]
 
@@ -126,11 +93,15 @@ class TestLogFile < MiniTest::Test
 			Px4LogReader::FORMAT_MESSAGE,
 			fields )
 
-		Px4LogReader::LogFile.write_message( mock_io, message )
+		mock_io do |writer,reader|
+			Px4LogReader::LogFile.write_message( writer, message )
 
-		expected_length = Px4LogReader::FORMAT_MESSAGE.length + Px4LogReader::LogFile::HEADER_MARKER.length + 1
-		assert_equal expected_length, mock_io.buffer.length 
-		assert_equal [ 0xA3, 0x95, 0x80 ], mock_io.buffer[0,3].unpack('C*')
+			expected_length = Px4LogReader::FORMAT_MESSAGE.length
+			assert_equal expected_length, writer.pos
+
+			header = reader.read( 3 )
+			assert_equal [ 0xA3, 0x95, 0x80 ], header.unpack('C*')
+		end
 
 	end
 
@@ -153,6 +124,36 @@ class TestLogFile < MiniTest::Test
 			test_data << byte
 		end
 		return test_data
+	end
+
+	def mock_io( buffer = nil )
+
+		temp_filename = File.join( 'test', 'temp_test_data', 'mock_io.dat' )
+		unless Dir.exist?( File.dirname( temp_filename ) )
+			FileUtils.mkdir( File.dirname( temp_filename ) )
+		end
+
+		# Create the file.
+		FileUtils.touch( temp_filename )
+
+		# Open the file for writing and reading and writing.
+		writer = File.open( temp_filename, 'wb' )
+		if buffer
+			writer.write( buffer )
+			writer.flush
+		end
+
+		reader = File.open( temp_filename, 'rb' )
+
+		yield writer, reader if block_given?
+
+		reader.close
+		writer.close
+
+		if Dir.exist?( File.dirname( temp_filename ) )
+			FileUtils.rm_rf( File.dirname( temp_filename ) )
+		end
+
 	end
 
 end

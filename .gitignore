@@ -2,3 +2,4 @@
 .DS_Store
 *.gem
 default_log_path.txt
+descriptors.txt

@@ -32,13 +32,20 @@
 
 module Px4LogReader	
 
-	def self.open_common( file, options, &block )
+	# Attach a reader to an existing input stream.
+	#
+	# @param input_stream [IO] Valid input stream
+	# @param options [Hash] Reader options hash
+	# @param block  Optional block
+	#
+	def self.attach( input_stream, options, &block )
 
-		reader = Reader.new( file, options )
+		reader = Reader.new( input_stream, options )
 
 		yield reader if block_given?
 
 		return reader
+		
 	end
 
 	def self.open( filename, options = {}, &block  )
@@ -46,7 +53,7 @@ module Px4LogReader
 		reader = nil
 
 		if File.exist?( filename )
-			reader = self.open_common( File.open( filename, 'r' ), options, &block )
+			reader = self.attach( File.open( filename, 'rb' ), options, &block )
 		end	
 
 		return reader
@@ -57,7 +64,7 @@ module Px4LogReader
 		reader = nil
 
 		if File.exist?( filename )
-			reader = self.open_common( File.open( filename, 'r' ), options, &block )
+			reader = self.attach( File.open( filename, 'rb' ), options, &block )
 		else
 			raise FileNotFoundError.new( filename )
 		end	
@@ -65,11 +72,19 @@ module Px4LogReader
 		return reader
 	end
 
+	# Container to hold the most recent copy of each message type
 	class Context
+
 		attr_reader :messages
+
 		def initialize
-			messages = {}
+			@messages = {}
 		end
+
+		# Query the context for the most recent copy of a message by name
+		#
+		# @param name [String] Message name
+		#
 		def find_by_name( name )
 			named_message = nil
 			@messages.values.each do |message|
@@ -79,40 +94,62 @@ module Px4LogReader
 			end
 			return named_message
 		end
+
+		# Query the context for the most recent copy of a message by type
+		#
+		# @param type [Fixnum]  Message type
+		#
 		def find_by_type( type )
 			return @messages[ type ]
 		end
+
+		# Set the most recent copy of a message by type. Any existing message
+		# is overwritten.
+		#
+		# @param  message [LogMessage]  Message instance
+		#
 		def set( message )
 			@messages[ message.descriptor.type ] = message.dup
 		end
+
 	end
 
-	class Reader   
+	class Reader
+
+		attr_reader :progress
+		attr_reader :context
 
 		def initialize( file, options )
 
 			opts = {
 				cache_filename: '',
-				buffer_size_kb: 10 * 1024
 			}.merge( options )
 
 			@message_descriptors = {}
-			@buffers = LogBufferArray.new
 			@descriptor_cache = nil
 			@context = Context.new
 
 			@log_file = file
-			# @buffers.set_file( @log_file, load_buffers: true )
+			@progress = Progress.new( @log_file )
 
 			@descriptor_cache = MessageDescriptorCache.new( opts[:cache_filename] )
 		end
 
-		def descriptors
+		#
+		# Get the list of descriptors associated with the open PX4 log file.
+		# If a valid descriptor cache was specified at startup, the descriptors
+		# are loaded from the cache. Otherwise, the descriptors are parsed from
+		# the open log.
+		#
+		# @param  [block] optional block is passed each descriptor as it is read
+		# @return descriptors [Array] Array of descriptors
+		#
+		def descriptors( &block )
 			if @log_file && @message_descriptors.empty?
 				if @descriptor_cache && @descriptor_cache.exist?
 					@message_descriptors = @descriptor_cache.read_descriptors
 				else
-					@message_descriptors = LogFile::read_descriptors( @log_file, @descriptor_cache )
+					@message_descriptors = LogFile::read_descriptors( @log_file, @descriptor_cache, &block )
 				end
 
 				@message_descriptors[ FORMAT_MESSAGE.type ] = FORMAT_MESSAGE
@@ -121,6 +158,16 @@ module Px4LogReader
 			return @message_descriptors
 		end
 
+		#
+		# Iterate over all log messages. Embedded message descriptors are skipped.
+		# If a "with" list is supplied, only messages in the list are passed to 
+		# the caller-supplied block. If a "without" list supplied, all messages
+		# except those in the list are passed to the caller-supplied block. The
+		# caller must supply a block.
+		#
+		# @param  options [Hash] options
+		# @param  block   [Block] block takes message as argument
+		#
 		def each_message( options = {}, &block )
 
 			opts ={
@@ -131,7 +178,11 @@ module Px4LogReader
 			opts[:with].map! do |val|
 				if val.class == String
 					descriptor = descriptors.values.find { |desc| desc.name == val }
-					val = descriptor.type
+					if descriptor
+						val = descriptor.type
+					else
+						puts "Failed to find descriptor with name '#{val}'"
+					end
 				end
 			end
 
@@ -151,19 +202,19 @@ module Px4LogReader
 
 				loop do
 
-					message = LogFile::read_message( @log_file, @message_descriptors )
+					message, offset = LogFile::read_message( @log_file, @message_descriptors )
 					break if message.nil?
 
-					# Added message to the set of latest messages.
+					# Add message to the set of latest messages.
 					@context.set( message )
 
 					if opts[:with].empty?
-						if !opts[:without].include?( message.descriptor.name )
-							yield message, @context
+						if !opts[:without].include?( message.descriptor.type )
+							yield message
 						end
 					else
 						if opts[:with].include?( message.descriptor.type )
-							yield message, @context
+							yield message
 						end
 					end
 
@@ -175,17 +226,19 @@ module Px4LogReader
 
 		end
 
-		# def rewind
-		# 	if @log_file
-
-		# 	@log_file.rewind
-		# 	@buffers.load_buffers
-
-		# 	end
-		# end
-
-		# def seek( offset )
-		# end
+		#
+		# Seek to the specified file offset. If the offset is greater than the
+		# file size, seeks to the end of the file.
+		#
+		# @param  offset [Fixnum]  File offset in bytes
+		#
+		def seek( offset )
+			if @log_file
+				seek_offset = offset
+				seek_offset = @progress.file_size if offset > @progress.file_size
+				@log_file.seek( seek_offset )
+			end
+		end
 
 	end
 
