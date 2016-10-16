@@ -130,7 +130,7 @@ module Px4LogReader
 
 						# Seek back to the beginning of the header for the non-
 						# matching message.
-						file.seek( -1 * HEADER_LENGTH, :CUR )
+						file.seek( -1 * HEADER_LENGTH, IO::SEEK_CUR )
 						break
 
 					end
