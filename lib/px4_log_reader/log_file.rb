@@ -34,8 +34,9 @@ module Px4LogReader
 
 	module LogFile
 
-		HEADER_MARKER = [0xA3,0x95]
-		HEADER_LENGTH = HEADER_MARKER.length + 1
+		HEADER_MARKER = [0xA3,0x95].freeze
+		HEADER_MESSAGE_TYPE_LENGTH = 1
+		HEADER_LENGTH = HEADER_MARKER.length + HEADER_MESSAGE_TYPE_LENGTH
 		FORMAT_DESCRIPTOR_TABLE = { FORMAT_MESSAGE.type => FORMAT_MESSAGE }.freeze
 
 		@@debug = false
@@ -152,19 +153,19 @@ module Px4LogReader
 
 			begin
 
-				data   = file.read_nonblock( HEADER_MARKER.length )
+				data   = file.read( HEADER_MARKER.length )
 				offset = file.pos
 
 				if data && ( data.length == HEADER_MARKER.length )
 
 					while !data.empty? && message_type.nil? do
 
-						if ( byte = file.read_nonblock( 1 ) )
+						if ( byte = file.read( HEADER_MESSAGE_TYPE_LENGTH ) )
 							data << byte
 						end
 						offset = file.pos
 
-						if data.length >= ( HEADER_MARKER.length + 1 )
+						if data.length >= HEADER_LENGTH
 
 							unpacked_data = data.unpack('C*')
 							

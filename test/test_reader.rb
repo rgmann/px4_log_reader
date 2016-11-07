@@ -115,7 +115,6 @@ class TestReader < MiniTest::Test
 
 			reader.each_message do |message|
 
-				# puts "#{index+1}: #{message.descriptor.name}, #{'%02X'%message.descriptor.type}"
 				break if index >= expected_messages.size
 
 				expected_name = expected_messages[ index ][0]
