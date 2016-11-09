@@ -43,24 +43,17 @@ class TestReader < MiniTest::Test
 		nonexistent_filename = 'nonexistent_logfile.px4log'
 
 		exception = assert_raises Px4LogReader::FileNotFoundError do
-			reader = Px4LogReader.open!( nonexistent_filename )
-		end
-
-		exception = assert_raises Px4LogReader::FileNotFoundError do
-			Px4LogReader.open!( nonexistent_filename ) do |reader|
+			Px4LogReader.open( nonexistent_filename ) do |reader|
 			end
 		end
 
 	end
 
-	def test_non_existent_log_file_no_except
-
+	def test_missing_block
 		nonexistent_filename = 'nonexistent_logfile.px4log'
 
-		assert_nil Px4LogReader.open( nonexistent_filename )
-
-		Px4LogReader.open( nonexistent_filename ) do |reader|
-			assert_nil reader
+		exception = assert_raises ArgumentError do
+			Px4LogReader.open( nonexistent_filename )
 		end
 	end
 
