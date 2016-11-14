@@ -32,44 +32,28 @@
 
 module Px4LogReader	
 
-	# Attach a reader to an existing input stream.
 	#
-	# @param input_stream [IO] Valid input stream
-	# @param options [Hash] Reader options hash
-	# @param block  Optional block
+	# Open the specified file for reading. The mandatory block is passed a
+	# Reader instance.
 	#
-	def self.attach( input_stream, options, &block )
+	# @param  filename [String]  Log file path
+	# @param  options  [Hash] Reader options hash
+	# @param  block  Required block
+	#
+	def self.open( filename, options = {}, &block )
 
-		reader = Reader.new( input_stream, options )
-
-		yield reader if block_given?
-
-		return reader
-		
-	end
-
-	def self.open( filename, options = {}, &block  )
-
-		reader = nil
+		unless block_given?
+			raise ArgumentError.new( 'Missing block' )
+		end
 
 		if File.exist?( filename )
-			reader = self.attach( File.open( filename, 'rb' ), options, &block )
-		end	
-
-		return reader
-
-	end
-
-	def self.open!( filename, options = {}, &block )
-		reader = nil
-
-		if File.exist?( filename )
-			reader = self.attach( File.open( filename, 'rb' ), options, &block )
+			File.open( filename, 'rb' ) do |file|
+				yield Reader.new( file, options )
+			end
 		else
 			raise FileNotFoundError.new( filename )
-		end	
-
-		return reader
+		end
+		
 	end
 
 	# Container to hold the most recent copy of each message type
