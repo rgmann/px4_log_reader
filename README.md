@@ -39,7 +39,7 @@ or add this to your Gemfile if you use [Bundler](http://gembundler.com/):
            params << messaged.get('Pitch')
            params << messaged.get('Yaw')
 
-           puts "%d/%d (%f\%): ATT @ %d - roll=%0.4f, pitch=%0.4f, yaw=%0.4f" % params
+           puts "%d/%d (%f%%): ATT @ %d - roll=%0.4f, pitch=%0.4f, yaw=%0.4f" % params
 
         end
      end
