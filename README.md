@@ -23,11 +23,23 @@ or add this to your Gemfile if you use [Bundler](http://gembundler.com/):
      require 'px4_log_reader'
 
      Px4LogReader.open( 'a_test_log.px4log' ) do |reader|
-        reader.each_message( { with: [ 'ATT' ] } ) do |message,context|
 
-           att = [ messaged.get('Roll'), message.get('Pitch'), message.get('Yaw') ]
+        # Loop over all 'ATT' messages.
+        reader.each_message( { with: [ 'ATT' ] } ) do |message|
 
-           puts "ATT( @ #{context.find_by_name('GPS').get('GPSTime')} ): roll=#{att[0]}, pitch=#{att[1]}, yaw=#{att[2]}"
+           # Retrieve the most recent 'GPS' message parsed from the log.
+           gps = reader.context.find_by_name('GPS')
+
+           params = []
+           params << reader.progress.file_offset
+           params << reader.progress.file_size
+           params << reader.progress.percentage
+           params << gps.get('GPSTime')
+           params << messaged.get('Roll')
+           params << messaged.get('Pitch')
+           params << messaged.get('Yaw')
+
+           puts "%d/%d (%f%%): ATT @ %d - roll=%0.4f, pitch=%0.4f, yaw=%0.4f" % params
 
         end
      end
